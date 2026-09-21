@@ -1,0 +1,105 @@
+volumes:
+  f1_postgres_data:
+    driver: local
+  kestra_postgres_data:
+    driver: local
+  kestra_data:
+    driver: local
+  kestra_tmp:
+    driver: local
+
+services:
+
+  #Postgres databse for the f1 data
+  pgdatabase:
+    image: postgres:18
+    container_name: f1_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: f1user
+      POSTGRES_PASSWORD: f1password
+      POSTGRES_DB: f1db
+    volumes:
+      - f1_postgres_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+
+    #pgAdmin - GUI for inspecting/quering the database
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: f1_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@f1.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8050:80"
+    depends_on:
+      - pgdatabase
+      
+  #PostgrsSQL database for the kestra data
+  kestra_pgdatabase:
+    image: postgres:18
+    container_name: kestra_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: kestrauser
+      POSTGRES_PASSWORD: kestrapassword
+      POSTGRES_DB: kestradb
+    volumes:
+      - kestra_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kestrauser -d kestradb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # Kestra - workflow orchestration engine
+  kestra:
+    image: kestra/kestra:v1.1
+    container_name: kestra
+    pull_policy: always
+    user: "root"
+    command: server standalone
+
+    volumes:
+      - kestra_data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - kestra_tmp:/tmp/kestra-wd
+
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra_pgdatabase:5432/kestradb
+            driverClassName: org.postgresql.Driver
+            username: kestrauser
+            password: kestrapassword
+
+        kestra:
+          repository:
+            type: postgres
+
+          storage:
+            type: local
+            local:
+              basePath: "/app/storage"
+
+          queue:
+            type: postgres
+
+          tasks:
+            tmpDir:
+              path: /tmp/kestra-wd/tmp
+
+          url: http://localhost:8080/
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      kestra_pgdatabase:
+        condition: service_healthy
+  
