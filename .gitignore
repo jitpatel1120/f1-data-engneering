@@ -1,3 +1,8 @@
 notes/
 
-data/raw
+.venv/
+data/raw/
+.env
+__pycache__/
+*.py[cod]
+.vscode/
