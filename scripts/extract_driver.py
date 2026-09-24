@@ -8,15 +8,19 @@ REQUEST_DELAY = 0.5
 LIMIT = 100
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-def extract_endpoint(endpoint: str):
+def extract_endpoint(endpoint: str, season: int = None):
     offset = 0  # Set the offset to 0 for the first page of results
+
+    if season is None:
+        url_base = f"https://api.jolpi.ca/ergast/f1/{endpoint}/"
+        file_prefix = endpoint
+    else:
+        url_base = f"https://api.jolpi.ca/ergast/f1/{season}/{endpoint}/"
+        file_prefix = f"{endpoint}_{season}"
     while True:
         try:
-            url = (
-                f"https://api.jolpi.ca/ergast/f1/{endpoint}/"
-                f"?limit={LIMIT}&offset={offset}"
-            )
-            
+            url = f"{url_base}?limit={LIMIT}&offset={offset}"
+
             response = requests.get(url, timeout=30) #Make request
             response.raise_for_status() #verify request
 
@@ -24,7 +28,7 @@ def extract_endpoint(endpoint: str):
             
             data = response.json() #parse JSON
 
-            output_path = (PROJECT_ROOT/ "data"/ "raw"/ endpoint/ f"{endpoint}_offset_{offset}.json")            
+            output_path = (PROJECT_ROOT/ "data"/ "raw"/ endpoint/ f"{file_prefix}_offset_{offset}.json")            
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             with output_path.open("w", encoding="utf-8") as file:
@@ -46,8 +50,21 @@ def extract_endpoint(endpoint: str):
         if offset >= total:
             break 
 
+def backfill_races(start_season: int, end_season: int):
+    for season in range(start_season, end_season + 1):
+
+        file_path = PROJECT_ROOT / "data" / "raw" / "races" / f"races_{season}_offset_0.json"
+
+        if not file_path.exists():
+            extract_endpoint("races", season=season)
+        else:
+            print(f"Data for races in season {season} already exists. Skipping extraction.")
 
 if __name__ == "__main__":
-    extract_endpoint("drivers")
-    extract_endpoint("constructors")
-    extract_endpoint("circuits")
+    #extract_endpoint("drivers")
+    #extract_endpoint("constructors")
+    #extract_endpoint("circuits")
+    #extract_endpoint("races", season=2026)
+    #extract_endpoint("results", season=2025)
+    extract_endpoint("qualifying", season=2025)
+    #backfill_races(2024, 2026)
