@@ -13,7 +13,6 @@ services:
   #Postgres databse for the f1 data
   pgdatabase:
     image: postgres:18
-    container_name: f1_postgres
     restart: always
     environment:
       POSTGRES_USER: f1user
@@ -28,7 +27,6 @@ services:
     #pgAdmin - GUI for inspecting/quering the database
   pgadmin:
     image: dpage/pgadmin4
-    container_name: f1_pgadmin
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@f1.com
@@ -41,7 +39,6 @@ services:
   #PostgrsSQL database for the kestra data
   kestra_pgdatabase:
     image: postgres:18
-    container_name: kestra_postgres
     restart: always
     environment:
       POSTGRES_USER: kestrauser
@@ -59,7 +56,6 @@ services:
   # Kestra - workflow orchestration engine
   kestra:
     image: kestra/kestra:v1.1
-    container_name: kestra
     pull_policy: always
     user: "root"
     command: server standalone
