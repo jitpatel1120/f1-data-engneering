@@ -3,6 +3,8 @@ notes/
 .venv/
 data/raw/
 .env
+.env.*
+!.env.example
 __pycache__/
 *.py[cod]
 .vscode/
