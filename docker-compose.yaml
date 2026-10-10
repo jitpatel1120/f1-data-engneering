@@ -7,6 +7,8 @@ volumes:
     driver: local
   kestra_tmp:
     driver: local
+  pgadmin_data:
+    driver: local
 
 services:
 
@@ -31,6 +33,8 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@f1.com
       PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     ports:
       - "8050:80"
     depends_on:
