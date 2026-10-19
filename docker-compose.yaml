@@ -94,6 +94,12 @@ services:
             tmpDir:
               path: /tmp/kestra-wd/tmp
 
+          plugins:
+            configurations:
+              - type: io.kestra.plugin.scripts.runner.docker.Docker
+                values:
+                  volume-enabled: true
+
           url: http://localhost:8080/
 
     ports:

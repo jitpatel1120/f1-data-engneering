@@ -2,6 +2,17 @@ import os
 import psycopg
 from dotenv import load_dotenv
 import argparse
+import logging
+import time
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logging.info("Starting F1 data load")
+
 
 load_dotenv()
 
@@ -17,10 +28,14 @@ from transform import (
     transform_sprint_results
 )
 
-
+def validate_records(records, table_name):
+    if not records: 
+        raise ValueError(f"No records found for {table_name}")
 
 def load_drivers(cursor):
     drivers = transform_drivers()
+
+    validate_records(drivers, "drivers")
 
 
     drivers_upsert_query = """
@@ -66,6 +81,8 @@ def load_constructors(cursor):
 
     constructors = transform_constructors()
 
+    validate_records(constructors, "constructors")
+
 
     constructors_upsert_query = """
         INSERT INTO f1.constructors (
@@ -97,6 +114,9 @@ def load_constructors(cursor):
 def load_circuits(cursor):
     
     circuits = transform_circuits()
+
+    validate_records(circuits, "circuits")
+
 
     circuits_upsert_query = """
         INSERT INTO f1.circuits (
@@ -139,6 +159,8 @@ def load_races(cursor):
 
     races = transform_races()
 
+    validate_records(races, "races")
+
     races_upsert_query = """
         INSERT INTO f1.races (
             season,
@@ -179,6 +201,8 @@ def load_races(cursor):
 def load_results(cursor):
 
     results = transform_results()
+
+    validate_records(results, "results")
 
     results_upsert_query = """
         INSERT INTO f1.results (
@@ -233,6 +257,8 @@ def load_qualifying(cursor):
     
     qualifying_result = transform_qualifying()
 
+    validate_records(qualifying_result, "qualifying")
+
     qualifying_upsert_query = """
         INSERT INTO f1.qualifying (
             season,
@@ -277,6 +303,8 @@ def load_laps(cursor):
 
     laps = transform_laps()
 
+    validate_records(laps, "laps")
+
     laps_upsert_query = """
         INSERT INTO f1.laps (
             season,
@@ -312,6 +340,8 @@ def load_laps(cursor):
 def load_pitstops(cursor):
 
     pitstops = transform_pitstops()
+
+    validate_records(pitstops, "pitstops")
 
     pitstops_upsert_query = """
         INSERT INTO f1.pitstops (
@@ -352,6 +382,8 @@ def load_pitstops(cursor):
 def load_sprint_results(cursor):
 
     sprint_results = transform_sprint_results()
+
+    validate_records(sprint_results, "sprint results")
 
 
     sprint_results_upsert_query = """
@@ -430,21 +462,32 @@ def main():
     }
 
 
-    with psycopg.connect(
-        host=os.environ["DB_HOST"],
-        port=os.environ["DB_PORT"],
-        dbname=os.environ["DB_NAME"],
-        user=os.environ["DB_USER"],
-        password=os.environ["DB_PASSWORD"]
-    ) as conn:
-        with conn.cursor() as cursor:
-            if args.table == "all":
-                for name, function in load_functions.items():
+    try:
+        with psycopg.connect(
+            host=os.environ["DB_HOST"],
+            port=os.environ["DB_PORT"],
+            dbname=os.environ["DB_NAME"],
+            user=os.environ["DB_USER"],
+            password=os.environ["DB_PASSWORD"]
+        ) as conn:
+            with conn.cursor() as cursor:
+                if args.table == "all":
+                    selected_loaders = load_functions.items()
+                else:
+                    selected_loaders = [(args.table, load_functions[args.table])]
+
+                for name, function in selected_loaders:
+                    start = time.perf_counter()
+
                     count = function(cursor)
-                    print(f"Processed {name}: {count} rows")
-            else:
-                count = load_functions[args.table](cursor)
-                print(f"Processed {args.table}: {count} rows")
+
+                    elapsed = time.perf_counter() - start
+
+                    logging.info(f"Processed {name}: {count} records in {elapsed:.2f} seconds")    
+        logging.info("F1 data load completed successfully")
+    except Exception:
+        logging.exception("F1 data load failed")
+        raise
 
 
 if __name__ == "__main__":
