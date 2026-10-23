@@ -47,14 +47,6 @@ def extract_endpoint(endpoint: str, season: int = None, round_number: int = None
     write_dir = (output_dir / ".staging" / file_prefix if mode == "refresh" else output_dir)
 
     if mode == "refresh":
-        backup_dir = output_dir / ".backup" / file_prefix
-
-        if backup_dir.exists():
-            raise RuntimeError(
-                f"Backup directory already exists: {backup_dir}. "
-                "Check for an interrupted refresh before continuing."
-            )
-
         if write_dir.exists():
             shutil.rmtree(write_dir)
 
@@ -199,52 +191,25 @@ def extract_endpoint(endpoint: str, season: int = None, round_number: int = None
                 f"found: {sorted(offsets)}"
             )
 
+        # Mark the active dataset as incomplete during publication
+        completed_marker.unlink(missing_ok=True)
 
-        try:
-            for file in existing_files:
-                destination = backup_dir / file.name
-                shutil.move(str(file), str(destination))
+        # Remove old dataset files
+        for file in existing_files:
+            file.unlink()
 
-        except Exception:
-            for file in backup_dir.glob(f"{file_prefix}_offset_*.json"):
-                destination = output_dir / file.name
-                shutil.move(str(file), str(destination))
+        # Publish validated files
+        for file in staged_files:
+            destination = output_dir / file.name
+            shutil.move(str(file), str(destination))
 
-            raise
+        # Mark the refreshed dataset as complete
+        completed_marker.touch()
 
-        published_files = []
+        # Remove the staging directory
+        shutil.rmtree(write_dir)
 
-        try:
-            for file in staged_files:
-                destination = output_dir / file.name
-                shutil.move(str(file), str(destination))
-                published_files.append(destination)
-        except Exception:
-            # Remove any partially published refreshed files
-            for file in published_files:
-                if file.exists():
-                    file.unlink()
-
-            # Restore the original JSON files
-            for file in backup_dir.glob(f"{file_prefix}_offset_*.json"):
-                destination = output_dir / file.name
-                shutil.move(str(file), str(destination))
-
-            raise
-        else:
-            completed_marker.touch()
-
-            print(f"Successfully published {file_prefix}.")
-
-            try:
-                shutil.rmtree(write_dir)
-                shutil.rmtree(backup_dir)
-
-            except OSError as e:
-                print(
-                    f"Warning: Refresh succeeded, but cleanup failed "
-                    f"for {file_prefix}: {e}"
-                )
+        print(f"Successfully refreshed {file_prefix}.")
 
 def backfill_races(start_season: int, end_season: int, mode: str="backfill"):
     for season in range(start_season, end_season + 1):

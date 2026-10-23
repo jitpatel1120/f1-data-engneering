@@ -9,6 +9,29 @@ from decimal import Decimal
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
+def validate_completed_extractions(endpoint: str, pattern: str):
+    raw_dir = PROJECT_ROOT / "data" / "raw" / endpoint
+
+    files = list(raw_dir.glob(pattern))
+
+    if not files:
+        raise RuntimeError(
+            f"No raw files found for {endpoint}"
+        )
+
+    for file in files:
+        file_prefix = file.name.split("_offset_")[0]
+        completed_marker = raw_dir / f"{file_prefix}_COMPLETED"
+
+        if not completed_marker.exists():
+            raise RuntimeError(
+                f"Incomplete extraction detected: {file_prefix}. "
+                "Run extraction again before transforming."
+            )
+
+    return files
+
+
 # DRIVER SCHEMA
 # driver_id          varchar
 # permanent_number   varchar
@@ -20,11 +43,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def transform_drivers():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "drivers"
     drivers = []
     
+    files = validate_completed_extractions(
+        "drivers",
+        "drivers_offset_*.json"
+    )
 
-    for file in wd.glob("drivers_offset_*.json"):
+    for file in files:
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
             raw_drivers = data["MRData"]["DriverTable"]["Drivers"]
@@ -51,10 +77,15 @@ def transform_drivers():
 # constructor_nationality varchar
 def transform_constructors():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "constructors"
     constructors = []
 
-    for file in wd.glob("constructors_offset_*.json"):
+    files = validate_completed_extractions(
+        "constructors",
+        "constructors_offset_*.json"
+    )
+    
+
+    for file in files:
   
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -83,10 +114,14 @@ def transform_constructors():
 
 def transform_circuits():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "circuits"
     circuits = []
 
-    for file in wd.glob("circuits_offset_*.json"):
+    files = validate_completed_extractions(
+        "circuits",
+        "circuits_offset_*.json"
+    )
+
+    for file in files:
   
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -121,10 +156,14 @@ def transform_circuits():
 
 def transform_races():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "races"
     races = []
 
-    for file in wd.glob("races_*_offset_*.json"):
+    files = validate_completed_extractions(
+        "races",
+        "races_*_offset_*.json"
+    )
+
+    for file in files:
   
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -193,10 +232,14 @@ def duration_to_millis(value):
 # fastest_lap_time bigint    
 def transform_results():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "results"
     results = []
 
-    for file in sorted(wd.glob("results_*_offset_*.json"), key=sort_key):
+    files = validate_completed_extractions(
+        "results",
+        "results_*_offset_*.json"
+    )
+
+    for file in sorted(files, key=sort_key):
         
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -238,10 +281,14 @@ def transform_results():
 # Q3_millis time duration in milliseconds
 def transform_qualifying():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "qualifying"
     qualifying_result = []
 
-    for file in sorted(wd.glob("qualifying_*_offset_*.json"), key=sort_key):
+    files = validate_completed_extractions(
+        "qualifying",
+        "qualifying_*_offset_*.json"
+    )
+
+    for file in sorted(files, key=sort_key):
         
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -281,10 +328,14 @@ def round_sort_key(file):
 
 def transform_laps():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "laps"
     laps = []
 
-    for file in sorted(wd.glob("laps_*_*_offset_*.json"), key=round_sort_key):
+    files = validate_completed_extractions(
+        "laps",
+        "laps_*_*_offset_*.json"
+    )
+
+    for file in sorted(files, key=round_sort_key):
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
             raw_races = data["MRData"]["RaceTable"]["Races"]
@@ -317,10 +368,14 @@ def transform_laps():
 # duration_millis time duration in milliseconds
 def transform_pitstops():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "pitstops"
     pitstops = []
 
-    for file in sorted(wd.glob("pitstops_*_*_offset_*.json"), key=round_sort_key):
+    files = validate_completed_extractions(
+        "pitstops",
+        "pitstops_*_*_offset_*.json"
+    )
+
+    for file in sorted(files, key=round_sort_key):
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
             raw_races = data["MRData"]["RaceTable"]["Races"]
@@ -357,10 +412,14 @@ def transform_pitstops():
 # fastest_lap_time bigint  
 def transform_sprint_results():
 
-    wd = PROJECT_ROOT / "data" / "raw" / "sprint"
     sprints = []
 
-    for file in sorted(wd.glob("sprint_*_offset_*.json"), key=sort_key):
+    files = validate_completed_extractions(
+        "sprint",
+        "sprint_*_offset_*.json"
+    )
+
+    for file in sorted(files, key=sort_key):
         
         with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)

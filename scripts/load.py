@@ -441,11 +441,19 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-    "--table",
-    choices=["drivers", "constructors", "races", "circuits", "results", "qualifying", "laps", "pitstops", "sprint_results", "all"],
-    default="all",
-    help="Select which table to load (default: all)"
+        "--table",
+        choices=["drivers", "constructors", "races", "circuits", "results", "qualifying", "laps", "pitstops", "sprint_results", "all"],
+        default="all",
+        help="Select which table to load (default: all)"
     )
+
+    parser.add_argument(
+        "--endpoints",
+        nargs="+",
+        choices=["drivers", "constructors", "circuits", "races", "results", "qualifying", "laps", "pitstops", "sprint"],
+        help="Load only the specified endpoints"
+    )
+
 
     args = parser.parse_args()
 
@@ -471,10 +479,32 @@ def main():
             password=os.environ["DB_PASSWORD"]
         ) as conn:
             with conn.cursor() as cursor:
-                if args.table == "all":
+                if args.endpoints:
+                    if args.table != "all":
+                        parser.error("Cannot use --table and --endpoints together")
+
+                    endpoint_mapping = {
+                        "sprint": "sprint_results"
+                    }
+
+                    selected_tables = {
+                        endpoint_mapping.get(endpoint, endpoint)
+                        for endpoint in args.endpoints
+                    }
+
+                    selected_loaders = [
+                        (name, function)
+                        for name, function in load_functions.items()
+                        if name in selected_tables
+                    ]
+
+                elif args.table == "all":
                     selected_loaders = load_functions.items()
+
                 else:
-                    selected_loaders = [(args.table, load_functions[args.table])]
+                    selected_loaders = [
+                        (args.table, load_functions[args.table])
+                    ]
 
                 for name, function in selected_loaders:
                     start = time.perf_counter()
