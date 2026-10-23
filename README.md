@@ -158,8 +158,8 @@ Python does not need to be installed locally to execute the ETL pipeline because
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
-cd YOUR_REPOSITORY
+git clone https://github.com/jitpatel1120/f1-data-engneering.git
+cd f1-data-engneering
 ```
 
 Replace the placeholder repository URL and directory with the actual GitHub repository details.
