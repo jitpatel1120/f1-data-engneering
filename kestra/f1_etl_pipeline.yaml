@@ -1,0 +1,67 @@
+id: f1_etl_pipeline
+namespace: f1
+
+inputs:
+  - id: start_season
+    type: INT
+    defaults: 2025
+
+  - id: end_season
+    type: INT
+    defaults: 2025
+
+  - id: endpoints
+    type: MULTISELECT
+    displayName: Endpoints
+    description: Select one or more F1 data endpoints to extract.
+    defaults: ["drivers", "constructors", "circuits", "races", "results", "qualifying", "laps", "pitstops", "sprint"]
+    values:
+      - drivers
+      - constructors
+      - circuits
+      - races
+      - results
+      - qualifying
+      - laps
+      - pitstops
+      - sprint
+
+  - id: mode
+    type: SELECT
+    displayName: Execution Mode
+    description: Choose whether to backfill historical data or refresh existing data.
+    defaults: backfill
+    values:
+      - backfill
+      - refresh
+
+tasks:
+  - id: extract_f1_data
+    type: io.kestra.plugin.scripts.python.Commands
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      pullPolicy: NEVER
+      networkMode: f1-data-engneering_default
+      volumes:
+        - "{{ envs.kestra_f1_raw_data_path }}:/app/data/raw"
+    containerImage: f1-etl:dev
+    commands:
+      - python /app/scripts/extract.py --mode {{ inputs.mode }} --start-season {{ inputs.start_season }} --end-season {{ inputs.end_season }} --endpoints {{ inputs.endpoints | join(' ') }}
+
+  - id: transform_and_load
+    type: io.kestra.plugin.scripts.python.Commands
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      pullPolicy: NEVER
+      networkMode: f1-data-engneering_default
+      volumes:
+        - "{{ envs.kestra_f1_raw_data_path }}:/app/data/raw:ro"
+    containerImage: f1-etl:dev
+    env:
+      DB_HOST: pgdatabase
+      DB_PORT: "5432"
+      DB_NAME: "{{ envs.f1_db_name }}"
+      DB_USER: "{{ envs.f1_db_user }}"
+      DB_PASSWORD: "{{ envs.f1_db_password }}"
+    commands:
+      - python /app/scripts/load.py --endpoints {{ inputs.endpoints | join(' ') }}
